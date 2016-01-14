@@ -2,8 +2,8 @@
 Welcome to Arthika's REST API. This repository is an entry hub from which users can access the [REST API Reference](https://github.com/Arthika/API-REST/wiki) in the associated wiki and the code repositories listed below:
 
 [Chapter 1](Chapter1.md)   
-[Chapter 2](https://github.com/Arthika/API-REST/wiki)   
-
+[Chapter 2](Chapter2.md)   
+[Chapter 3](Chapter3.asciidoc) 
 
 ### API REST Code repositories:
 
