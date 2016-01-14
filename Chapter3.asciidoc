@@ -1,3 +1,4 @@
+= hydra-java image:https://travis-ci.org/dschulten/hydra-java.svg?branch=master["Build Status", link="https://travis-ci.org/dschulten/hydra-java"]
 :toc:
 :toc-placement: preamble
 
@@ -9,11 +10,514 @@ Latest release: 0.2.0-beta2
 
 == Problem
 
-The meaning of json attributes in api responses, their possible values etc. is usually not obvious without referring to some
-information coming from outside the resource itself. That is due to the nature of json. Two solutions immediately come to mind. Both are ways of vendor-specific documentation, some are machine-readable, some aren't.
+The meaning of json attributes in api responses, their possible values etc. is usually not obvious without referring to some 
+information coming from outside the resource itself. That is due to the nature of json. Two solutions immediately come to mind. Both are ways of vendor-specific documentation, some are machine-readable, some aren't. 
 
-Describe the type in some sort of json-schema, wadl, raml, swagger or similar and publish it together with the resource. People could even generate classes from this information, if they wish to. My api users coming from a wsdl background scream for something like that.
+Describe the type in some sort of json-schema, wadl, raml, swagger or similar and publish it together with the resource. People could even generate classes from this information, if they wish to. My api users coming from a wsdl background scream for something like that. 
 
 Or put up documentation pages to describe your ex:doodad extension relation types and make the documentation available by dereferencing http://example.com/api/rels#doodad.
 
 But one of the rules for a ReSTful API is:
+
+[quote, Roy Fielding]
+____
+A REST API should never have “typed” resources that are significant to the client. 
+Specification authors may use resource types for describing server implementation behind the interface, 
+but those types must be irrelevant and invisible to the client. 
+The only types that are significant to a client are the current representation’s media type and standardized relation names. 
+[Failure here implies that clients are assuming a resource structure due to out-of band information, 
+such as a domain-specific standard, which is the data-oriented equivalent to RPC's functional coupling].
+____
+
+My interpretation of this famous http://roy.gbiv.com/untangled/2008/rest-apis-must-be-hypertext-driven[rant by Roy Fielding]:
+
+A publicly available media-type should give clients all necessary means to interpret a server response, 
+and relation names for hyperlinks in the response must be recognizable based on public conventions, so that the client can act upon
+the responses it receives without knowing the details of a vendor-specific api.
+
+In other words: If a client is told to make a reservation for a concert ticket, it should be able to recognize what 
+one-fancy-api requires to achieve that without processing a vendor-specific documentation. How can we do that, purely based on a media type and relation names? Do we need hundreds of iana registered media types for all kinds of purposes?
+
+== Solution (evolving)
+
+I see http://www.w3.org/TR/json-ld/[json-ld] (media type application/ld+json) as a possible way to solve this problem without forcing people to ask me
+about my vendor-specific documentation, thus decoupling the clients from my server types.
+
+Clients should be able to understand a response based on widely available, standardized, public information.
+
+The json-ld mediatype allows to bring descriptions of things in the real world from public vocabularies into your json files. With json-ld there *is* a way to say that a json response describes a http://schema.org/MusicEvent[MusicEvent] which http://schema.org/offers[offers] a http://schema.org/Ticket[Ticket] without any vendor-specific documentation, and it can also link to other resources.
+
+A popular vocabulary which describes things on the internet is http://schema.org. It is used by all major search engines for search engine optimization and sufficient for basic needs. It also integrates with other vocabularies, 
+e.g. by using http://schema.org/additionalType[additionalType] to point to http://purl.org/goodrelations/[GoodRelations] classes or by using external enumerated values as shown by http://schema.org/DeliveryMethod[DeliveryMethod].
+
+(For those of you about to say that the Semantic Web never took off, please note that json-ld is http://manu.sporny.org/2014/json-ld-origins-2/[not about the Semantic Web at all]).
+
+http://www.hydra-cg.com/[Hydra] adds interaction to the mix. It describes exactly how to post a ticket reservation.
+
+So I want to add json-ld information to json objects serialized from my Java beans.
+
+Java beans have no knowledge about the meaning of their bean properties and they do not know what they represent in the real world.
+
+In the simplest possible case I want to design my json objects so that they can be understood by others based on schema.org.
+By simply calling my json transfer class `Person` and letting it have an attribute `name`, I want to get a publicly understandable
+json object, like this:
+
+[source, Java]
+----
+    @Test
+    public void testDefaultVocabIsRendered() throws Exception {
+
+        class Person {
+            private String name = "Dietrich Schulten";
+
+            public String getName() {
+                return name;
+            }
+        }
+
+        mapper.writeValue(w, new Person());
+    }
+----
+
+The corresponding json-ld object, written by hydra-java:
+
+[source, Javascript]
+----
+{
+  "@context": {
+    "@vocab": "http://schema.org/"
+  },
+  "@type": "Person",
+  "name": "Dietrich Schulten"
+}
+----
+
+Note that I do not bind my clients to a server type `Person`. 
+Rather, client and server are talking about the thing http://schema.org/Person[Person] as it is known and recognized by all major search engines.
+
+For a more expressive example consider the json-ld example of http://schema.org/MusicEvent[MusicEvent], which shows how a ticket offering could look like.
+	
+In a more complex scenario I want to use my own attribute names and object design and still be able to use schema.org or other vocabs to describe their meaning. In json-ld I can. See below for a listing of vocabularies.
+
+== First Steps
+It is currently possible to render responses from a https://github.com/spring-projects/spring-hateoas[spring-hateoas] service based on Spring MVC.
+
+Look into the https://github.com/dschulten/hydra-java/blob/master/hydra-sample/service/src/main/java/de/escalon/hypermedia/sample/Config.java[sample configuration] to see how you can set up the hydra message converter with Spring MVC.
+The tests in https://github.com/dschulten/hydra-java/blob/master/hydra-jsonld/src/test/java/de/escalon/hypermedia/hydra/serialize/JacksonHydraSerializerTest.java[JacksonHydraSerializerTest] demonstrate the usage of `@Vocab`, `@Expose` and `@Term`.
+
+== Features of hydra-spring
+The conversion of a spring-hateoas Resource does the following:
+
+- renders a spring-hateoas `List<Link>` in a `Resource<T>` in json-ld style
+- renders spring-hateoas `Resources<T>` as `hydra:Collection`. If you use this feature, make sure you have a `@Term(define = "hydra", as = "http://www.w3.org/ns/hydra/core#")` annotation in your context.
+- renders response with `"@vocab" : "http://schema.org/"` by default, a different `@vocab` can be defined on a class or package using the `@Vocab` annotation.
+- supports vocabularies in addition to the default vocabulary via terms in the `@context`. Use `@Term` in conjunction with `@Terms` on a class or package for this.
+- renders `@type` based on the Java class name by default, a vocabulary class can be produced instead using `@Expose` on the Java class.
+- renders attributes assuming that the attribute name is a property in the default vocab defined by `@vocab`. In other words, it renders an `offers` member as `"offers"` on a json-ld object with a context defining `"@vocab" : "http://schema.org"`, so that you end up with `"http://schema.org/offers"` as linked data name for your `offers` member. To map a custom attribute name such as `foo` to an existing property in the default vocab or other vocabs use `@Expose` on the attribute and a term will be created in `@context` which maps your attribute to the vocab property you set as value of `@Expose`.
+- renders Java enums assuming that an enum value name is an enumerated value defined by the default vocab. In json-ld it is not only possible to have attribute names, but also attribute *values* that have linked data names. The idiom to express that is `"@type" : "@vocab"`. An example of this is http://schema.org/OnSitePickup[OnSitePickup], which is an enum value for the property http://schema.org/availableDeliveryMethod[availableDeliveryMethod]. If your Java enum value is ON_SITE_PICKUP, it matches the vocab value of OnSitePickup. It will be rendered as ON_SITE_PICKUP and hydra-java will add the necessary definition to the context which makes it clear that ON_SITE_PICKUP is actually `http://schema.org/OnSitePickup`. If your Java enum value has a different name than the vocab value, use `@Expose` on the enum value to get a correct representation in the context. Note that you can also expose an enum value from a different vocabulary such as GoodRelations, see below.
+
+As of version 0.2.0 hydra-java supports hydra:collection, hydra:operation and hydra:IriTemplate as well as reversed terms. To make this possible, you *must* use the `linkTo` and `methodOn` methods of AffordanceBuilder as a drop-in replacement for `ControllerLinkBuilder`. Templated links created by ControllerLinkBuilder will at least be rendered as IriTemplates, but only with limited information about the template variables.
+
+Furthermore, if you use these hydra features, make sure you have a `@Term(define = "hydra", as = "http://www.w3.org/ns/hydra/core#")` annotation in your context.
+
+* renders a link to a remote collection as https://www.w3.org/community/hydra/wiki/Collection_Design[hydra:collection]. If you define the affordance to the remote collection with `AffordanceBuilder.rel()`, the remote collection gets a `hydra:subject` in its manages block, whereas if you define it with `reverseRel()` you get a `hydra:object`. To learn more about this design, consider the article https://www.w3.org/community/hydra/wiki/Collection_Design[Collection Design] in the hydra-cg wiki.
+* renders a templated link as `hydra:IriTemplate`. Method parameters can be annotated with `@Expose` to assign them a property URI, otherwise the variable name will be shown as a term in the current vocab. If you create a link with AffordanceBuilder's linkTo-method facilities and you pass `null` for arguments annotated with `@PathVariable` or `@RequestParam`, it will automatically become a templated link with variables for the `null` arguments.
+* renders a link to method handlers for any *combination* of GET, POST, PUT, PATCH and DELETE as `hydra:operation`. In order to express that multiple HTTP methods can be invoked on the same resource, use the `and()` method of AffordanceBuilder. See below for an example.
+* renders a single, manually created, non-templated Link or Affordance in json-ld style.
+* renders a POJO method parameter annotated with `@RequestBody` as expected rdfs:subClassOf. Use `@Expose` on the POJO class for a custom identifier. The setter methods on the bean appear as `hydra:supportedProperty`, and you can annotate them with `@Expose` to give them a semantic identifier. Again see below for an example.
+* uses certain schema.org facilities to describe expected request bodies. For this we need schema.org either as `@vocab` or as a `schema:` term. If you do not use schema.org as `@vocab`, make sure you have a `@Term(define = "schema", as = "http://schema.org/")` in the context.
+** expresses default value and value constraints by means of http://schema.org/PropertyValueSpecification. To specify such constraints, use the `@Input` annotation. Available constraints are min, max, step, minLength,  maxLength and pattern.
+** expresses supported properties whose value is an object by nesting them via http://schema.org/rangeIncludes.
+
+
+== Examples
+
+=== Designing a Hydra API ===
+See my article https://www.w3.org/community/hydra/wiki/Restbucks_with_Hydra for an example of an ordering flow.
+
+=== Live Demo
+
+Use a ReST client to access http://jbosswildfly-escalon.rhcloud.com/hypermedia-api/events[Sample API] to see the artifact hydra-sample at work. Sending `Accept: application/ld+json` will get you hydra, but `application/json` or `application/hal+json` work as well. When you POST or PUT, make sure you add a Content-Type header matching your request.
+
+
+=== Exposing Java Bean Attributes
+
+Assuming a Java enum whose enum values are exposed as values from GoodRelations and which appears on an Offer object with GoodRelations term:
+
+The example shows a Java enum named `BusinessFunctionˋ whose enum values are exposed as values from GoodRelations. The enum appears on an Offer object with a GoodRelations term:
+
+[source, Java]
+----
+    enum BusinessFunction {
+        @Expose("gr:LeaseOut")
+        RENT,
+        @Expose("gr:Sell")
+        FOR_SALE,
+        @Expose("gr:Buy")
+        BUY
+    }
+
+    @Term(define = "gr", as = "http://purl.org/goodrelations/v1#")
+    class Offer {
+        public BusinessFunction businessFunction;
+        ...
+    }
+----
+
+The json-ld output written by hydra-java makes the GoodRelations url known under the shorthand `gr`, says that the `businessFunction` property contains values defined by a vocabulary and maps the Java enum value `RENT` to its linked data name `"gr:LeaseOut"`.
+
+[source, Javascript]
+----
+{
+    "@context": {
+      "@vocab": "http://schema.org/",
+      "gr": "http://purl.org/goodrelations/v1#",
+      "businessFunction": {"@type": "@vocab"},
+      "RENT": "gr:LeaseOut"
+    },
+    "@type": "Offer",
+    "businessFunction": "RENT"
+}
+----
+
+=== AffordanceBuilder for rich hyperlinks (from V. 0.2.0)
+
+A hypermedia affordance is a rich hyperlink. That means, it not only contains a URI or a URITemplate, but also information about the usage of the URI, such as supported http methods and expected parameters. The term 'hypermedia affordance' is a neologism made popular by http://amundsen.com/blog/archives/1109[Mike Amundsen], following an earlier reference in http://roy.gbiv.com/talks/200804_REST_ApacheCon.pdf[A little REST and Relaxation] by Roy Fielding.
+A hydra-java `Affordance` can be used to render media-types which support this kind of information: first and foremost hydra, but it is quite easy to add message converters for other media types once the basic information is available.
+
+Version 0.2.0 provides an `AffordanceBuilder` class which is a drop-in replacement for the spring-hateoas `ControllerLinkBuilder`. The `AffordanceBuilder` does not depend on hydra or json-ld. It lives in the standalone jar spring-hateoas-ext and can also be used to render other media types than json-ld. One example is the `XhtmlResourceMessageConverter` which allows you to render your API responses as HTML forms.
+Use the `AffordanceBuilder` to build `Affordance` instances which inherit from the spring-hateoas `Link` but add the following traits to it:
+
+* Full support for all attributes of a http Link header as described by the https://tools.ietf.org/html/rfc5988[web linking rfc 5988]
+* Support for templated link headers as described by the http://tools.ietf.org/html/draft-nottingham-link-template-01[Link-Template Header Internet draft]
+* Improved creation of link templates. You can use the `linkTo-methodOn` technique to create templated links to handler methods. By simply leaving a parameter undefined (`null`) in a `methodOn` sample call, a template variable will be applied to your link.
+* Facility to chain several method invocations on the same resource. If the same link is used to PUT and DELETE a resource, use `AffordanceBuilder.and()` to add both method handlers to the affordance.
+* Has action descriptors with information about http methods and expected request data. Based on reflection and a minimal set of annotations it is possible to render forms-like affordances with quite precise information about expected input.
+
+In the following we use `AffordanceBuilder` to add a `self` rel that can be used with GET, PUT and DELETE to an event bean.
+First we wrap the event into a `Resource` so we can add affordances to it. Then we use the `linkTo-methodOn` technique three times to describe that the self rel can be used to get, update and delete the event.
+
+[source, Java]
+----
+
+    public class Event {
+        public final int id;
+        public final String performer;
+        public final String location;
+        private EventStatusType eventStatus;
+        private String name;
+
+        public Event(int id, String performer, String name, String location, EventStatusType eventStatus) {
+            ...
+        }
+
+        public void setEventStatus(EventStatusType eventStatus) {
+            this.eventStatus = eventStatus;
+        }
+    }
+
+    @Controller
+    @RequestMapping("/events")
+    public class EventController {
+
+        @RequestMapping(value = "/{eventId}", method = RequestMethod.GET)
+        public @ResponseBody Resource<Event> getEvent(@PathVariable Integer eventId) {
+            // get the event from some backend, then:
+            Resource<Event> eventResource = new Resource<Event>(event);
+            eventResource.add(linkTo(methodOn(EventController.class)
+                    .getEvent(event.id))
+                .and(linkTo(methodOn(EventController.class)
+                    .updateEvent(event.id, event)))
+                .and(linkTo(methodOn(EventController.class)
+                    .deleteEvent(event.id)))
+                .withSelfRel());
+            return eventResource;
+        }
+
+        @RequestMapping(value = "/{eventId}", method = RequestMethod.GET)
+        public @ResponseBody Resource<Event> getEvent(@PathVariable Integer eventId) {
+            ...
+        }
+
+
+        @RequestMapping(value = "/{eventId}", method = RequestMethod.PUT)
+        public ResponseEntity<Void> updateEvent(@PathVariable int eventId, @RequestBody Event event) {
+            ...
+        }
+
+        @RequestMapping(value = "/{eventId}", method = RequestMethod.DELETE)
+        public ResponseEntity<Void> deleteEvent(@PathVariable int eventId) {
+            ...
+        }
+    }
+
+----
+
+The resulting json-ld event object has the corresponding GET, PUT and DELETE operations. The PUT operation expects an http://schema.org/Event[Event] with a property http://schema.org/eventStatus[eventStatus]. By default, writable properties (with a setter following the JavaBean conventions) are rendered as `hydra:supportedProperty`. The URI to be used by the operations is the `@id` of the object that has a `hydra:operation`.
+
+[source, Javascript]
+----
+   {
+      "@type": "Event",
+      "@id": "http://localhost/events/1",
+      "performer": "Walk off the Earth",
+      "location": "Wiesbaden",
+      "name": "Gang of Rhythm Tour"
+      "hydra:operation": [
+         {
+             "hydra:method": "GET"
+         },
+         {
+             "hydra:method": "PUT",
+             "hydra:expects":
+             {
+                 "@type": "Event",
+                 "hydra:supportedProperty": [
+                     {
+                         "hydra:property": "eventStatus",
+                         "hydra:required": "true"
+                     }
+                 ]
+             }
+         },
+         {
+             "hydra:method": "DELETE"
+         }
+     ]
+   }
+----
+
+=== Rendering other media types (from V. 0.2.0-alpha8)
+
+Clients should be able to request a media-type they understand by means of content negotiation. Following this principle, the spring-hateoas-ext package provides the foundation to render hypermedia types which describe expected requests - not only as json-ld, but also as other media types. The `XhtmlResourceMessageConverter` is the second message converter in hydra-java which makes use of affordances built by `AffordanceBuilder`.
+
+If you add a `JsonLdDocumentationProvider` on the converter, it will render bean attributes as hyperlinks which point to their documentation on schema.org or other vocabularies, provided that your java beans are annotated with the necessary information.
+
+[source, Java]
+----
+
+@Configuration
+@EnableWebMvc
+public class Config extends WebMvcConfigurerAdapter {
+    ...
+    @Override
+    public void configureMessageConverters(List<HttpMessageConverter<?>> converters) {
+        converters.add(halConverter());
+        converters.add(xhtmlMessageConverter());
+        converters.add(jsonConverter());
+    }
+
+    private HttpMessageConverter<?> xhtmlMessageConverter() {
+        XhtmlResourceMessageConverter xhtmlResourceMessageConverter = new XhtmlResourceMessageConverter();
+        xhtmlResourceMessageConverter.setStylesheets(
+                Arrays.asList(
+                        "https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap.min.css"
+                ));
+        xhtmlResourceMessageConverter.setDocumentationProvider(new JsonLdDocumentationProvider());
+        return xhtmlResourceMessageConverter;
+    }
+    ...
+}
+
+----
+
+To make the API browsable, PUT and DELETE are tunneled through POST. This is necessary because the HTML media type does not support PUT or DELETE, the browser cannot handle a form which has other methods than GET or POST. Spring-MVC has a servlet filter which makes tunneling easy. The web.xml of the hydra-sample service shows how to enable that filter:
+
+[source, XML]
+----
+    <filter>
+        <filter-name>HiddenHttpMethodFilter</filter-name>
+        <filter-class>org.springframework.web.filter.HiddenHttpMethodFilter</filter-class>
+    </filter>
+    <filter-mapping>
+        <filter-name>HiddenHttpMethodFilter</filter-name>
+        <servlet-name>hypermedia-api</servlet-name>
+    </filter-mapping>
+----
+
+
+=== Specifying Property Value Requirements (from V. 0.2.0)
+
+Now let us tell the client a range of possible values for a property. We want to allow clients to add reviews for the work performed at an event. For this, we add a `Resource<CreativeWork>` to the `Event`, so that we can define an affordance on the creative work which allows clients to send reviews.
+
+[source, Java]
+----
+  public class Event {
+      ...
+      private final Resource<CreativeWork> workPerformed;
+
+      public Resource<CreativeWork> getWorkPerformed() {
+          return workPerformed;
+      }
+      ...
+  }
+
+  // in EventController:
+  @RequestMapping(value = "/{eventId}", method = RequestMethod.GET)
+  public @ResponseBody Resource<Event> getEvent(@PathVariable Integer eventId) {
+
+      // with an event from backend do this:
+
+      event.getWorkPerformed() //  <-- must be a Resource<CreativeWork>
+          .add(linkTo(methodOn(ReviewController.class) // <-- must use AffordanceBuilder.linkTo here
+              .addReview(event.id, new Review(null, new Rating(3)))) // <-- default ratingValue 3
+              .withRel("review"));
+      ...
+  }
+
+  @Controller
+  @RequestMapping("/reviews")
+  public class ReviewController {
+
+      @RequestMapping(value = "/events/{eventId}", method = RequestMethod.POST)
+      public ResponseEntity<Void> addReview(@PathVariable int eventId, @RequestBody Review review) {
+          // add review and return 201 Created
+      }
+  }
+----
+
+We expect that clients post a Review with a review body and a rating. The review body and the rating value have input constraints, so we annotate the method `setReviewBody` with `@Input(pattern=".{10,}")` and `setRatingValue` with `@Input(min = 1, max = 5, step = 1)`, as shown below.
+
+[source, Java]
+----
+
+  public class Rating {
+      private String ratingValue;
+
+      @JsonCreator
+      public Rating(@JsonProperty("ratingValue") Integer ratingValue) {
+        ..
+      }
+
+
+      public void setRatingValue(@Input(min = 1, max = 5, step = 1) String ratingValue) {
+          this.ratingValue = ratingValue;
+      }
+  }
+
+
+  public class Review {
+
+      private String reviewBody;
+      private Rating reviewRating;
+
+      @JsonCreator
+      public Review(@JsonProperty("reviewBody") String reviewBody,
+          @JsonProperty("reviewRating") Rating reviewRating) {
+             ...
+      }
+
+      public void setReviewBody(@Input(pattern=".{10,}") String reviewBody) {
+        ...
+      }
+
+      public void setReviewRating(Rating rating) {
+          this.reviewRating = rating;
+      }
+  }
+
+----
+
+In the resulting json-ld we use schema.org's http://schema.org/PropertyValueSpecification[PropertyValueSpecification] to express the input constraints `minValue`, `maxValue`, `stepValue` and `valuePattern`, as well as `defaultValue` containing the rating value `3` that was passed to the sample method invocation with `methodOn`. Note that the creative work has a `review` attribute now, although the `CreativeWork` pojo has no such property. It appears because we added a rel `review` to the workPerformed resource.
+
+Right now it is not possible to specify a list of expected values, neither with hydra nor with `schema:PropertyValueSpecification`. If you are interested in that, look into https://github.com/HydraCG/Specifications/issues/82[#82 Add support for allowed literals and allowed individuals] and participate in the discussion in the http://lists.w3.org/Archives/Public/public-hydra/2015Jan/0019.html[Hydra-CG mailing list].
+
+[source, Javascript]
+----
+{
+    "@context":
+    {
+        "@vocab": "http://schema.org/",
+        "hydra": "http://www.w3.org/ns/hydra/core#",
+        "eventStatus":
+        {
+            "@type": "@vocab"
+        },
+        "EVENT_SCHEDULED": "EventScheduled"
+    },
+    "@type": "Event",
+    "performer": "Walk off the Earth",
+    "location": "Wiesbaden",
+    "eventStatus": "EVENT_SCHEDULED",
+    "workPerformed": {
+        "@type": "CreativeWork",
+        "name": "Gang of Rhythm Tour",
+        "review": {
+            "@id": "http://localhost:8210/webapp/hypermedia-api/reviews/events/1",
+            "hydra:operation": [
+                {
+                    "@type": "ReviewAction",
+                    "hydra:method": "POST",
+                    "hydra:expects": {
+                        "@type": "Review",
+                        "hydra:supportedProperty": [
+                            {
+                                "@type": "PropertyValueSpecification",
+                                "hydra:property": "reviewBody",
+                                "valuePattern": ".{10,}"
+                            },
+                            {
+                                "hydra:property": "reviewRating",
+                                "rangeIncludes": {
+                                    "@type": "Rating",
+                                    "hydra:supportedProperty": [
+                                        {
+                                            "@type": "PropertyValueSpecification",
+                                            "hydra:property": "ratingValue",
+                                            "defaultValue": 3,
+                                            "maxValue": 5,
+                                            "minValue": 1,
+                                            "stepValue": 1
+                                        }
+                                    ]
+                                }
+                            }
+                        ]
+                    }
+                }
+            ]
+        }
+    }
+}
+
+----
+
+If an expected property on a request object holds a nested json object in turn, hydra-java will render it following a proposal from https://github.com/HydraCG/Specifications/issues/26[Hydra-CG Issue 26] using http://schema.org/rangeIncludes[schema:rangeIncludes]. The fact that this issue is not resolved yet is the main reason why hydra-java 0.2.0 is an alpha release. So be especially wary that changes are likely for the way hydra-java prescribes nested properties.
+
+
+== Maven Support
+The latest Maven releases of hydra-java are in Maven central. These are the maven coordinates for hydra-spring.
+
+[source, XML]
+----
+<dependency>
+  <groupId>de.escalon.hypermedia</groupId>
+  <artifactId>hydra-spring</artifactId>
+  <version>0.2.0-beta2</version>
+</dependency>
+----
+
+If you only want to use `AffordanceBuilder` or the `XhtmlResourceMessageConverter` without the json-ld dependencies, use spring-hateoas-ext alone:
+
+[source, XML]
+----
+<dependency>
+  <groupId>de.escalon.hypermedia</groupId>
+  <artifactId>spring-hateoas-ext</artifactId>
+  <version>0.2.0-beta2</version>
+</dependency>
+----
+
+== Vocabularies
+What if schema.org is not sufficient? On
+http://lov.okfn.org/dataset/lov/[Linked Open Vocabularies] you can search for terms in other vocabularies. Another option is to http://www.w3.org/wiki/WebSchemas/SchemaDotOrgProposals[propose an addition to schema.org].
+
+If you are unsure which vocab to use, ask on the http://lists.w3.org/Archives/Public/public-hydra/[ hydra mailing list].
+
+
+
+	
+== Acknowledgements
+
+I would like to thank Mike Amundsen, Stu Charlton, Jon Moore, Jørn Wildt, Mike Kelly, Markus Lanthaler, Gregg Kellog and Manu Sporny for their inspiration and for valuable comments along the way. Also thanks to Oliver Gierke who has been accepting some of my pull requests to spring-hateoas.
+
