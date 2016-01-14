@@ -1,4 +1,5 @@
 = hydra-java image:https://travis-ci.org/dschulten/hydra-java.svg?branch=master["Build Status", link="https://travis-ci.org/dschulten/hydra-java"]
+== Table of contents
 :toc:
 :toc-placement: preamble
 
