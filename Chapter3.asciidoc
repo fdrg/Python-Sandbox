@@ -1,5 +1,5 @@
 = hydra-java image:https://travis-ci.org/dschulten/hydra-java.svg?branch=master["Build Status", link="https://travis-ci.org/dschulten/hydra-java"]
-== Table of contents
+
 :toc:
 :toc-placement: preamble
 
@@ -9,6 +9,7 @@ Status: Testing. Since the Hydra Specification is still a draft, expect incompat
 
 Latest release: 0.2.0-beta2
 
+== Table of contents   
 == Problem
 
 The meaning of json attributes in api responses, their possible values etc. is usually not obvious without referring to some 
