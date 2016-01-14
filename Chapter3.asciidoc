@@ -1,0 +1,19 @@
+:toc:
+:toc-placement: preamble
+
+Annotate your Java beans and serialize them as http://www.w3.org/TR/json-ld/[json-ld] with http://www.hydra-cg.com/spec/latest/core/[hydra].
+
+Status: Testing. Since the Hydra Specification is still a draft, expect incompatible changes.
+
+Latest release: 0.2.0-beta2
+
+== Problem
+
+The meaning of json attributes in api responses, their possible values etc. is usually not obvious without referring to some
+information coming from outside the resource itself. That is due to the nature of json. Two solutions immediately come to mind. Both are ways of vendor-specific documentation, some are machine-readable, some aren't.
+
+Describe the type in some sort of json-schema, wadl, raml, swagger or similar and publish it together with the resource. People could even generate classes from this information, if they wish to. My api users coming from a wsdl background scream for something like that.
+
+Or put up documentation pages to describe your ex:doodad extension relation types and make the documentation available by dereferencing http://example.com/api/rels#doodad.
+
+But one of the rules for a ReSTful API is:
