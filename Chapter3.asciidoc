@@ -8,7 +8,6 @@ Annotate your Java beans and serialize them as http://www.w3.org/TR/json-ld/[jso
 Status: Testing. Since the Hydra Specification is still a draft, expect incompatible changes.
 
 Latest release: 0.2.0-beta2
-
 == Problem
 
 The meaning of json attributes in api responses, their possible values etc. is usually not obvious without referring to some 
