@@ -1,8 +1,9 @@
 # Tecnical Notes and bookmarks
-##### Table of Contents
+#### Table of Contents
 [Quantum Technology](#quantumtechnology)
 
 <a name="quantumtechnology"/>
+
 ## Quantum technology
 
 [IEEE Spectrum: The case againsta Quantum Computing](https://spectrum.ieee.org/computing/hardware/the-case-against-quantum-computing)    
