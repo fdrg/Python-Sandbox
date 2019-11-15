@@ -4,6 +4,10 @@
 
 <a name="quantumtechnology"/>
 
+### Artificial Intelligence
+[Wired: An AI Pioneer Wants His Algorithms to Understand the 'Why'](https://www.wired.com/story/ai-pioneer-algorithms-understand-why/#)   
+[Hotchips 2017 on AI and Human-machine](https://youtu.be/PVuSHjeh1Os)   
+
 ### Quantum technology
 
 [IEEE Spectrum: The case againsta Quantum Computing](https://spectrum.ieee.org/computing/hardware/the-case-against-quantum-computing)    
