@@ -11,12 +11,14 @@
 [Hotchips 2017 on AI and Human-machine](https://youtu.be/PVuSHjeh1Os)   
 
 <a name="quantumtechnology"/>   
+
 ### Quantum technology
 
 [IEEE Spectrum: The case againsta Quantum Computing](https://spectrum.ieee.org/computing/hardware/the-case-against-quantum-computing)    
 [Darío Gil](https://www.expansion.com/economia-digital/protagonistas/2019/01/16/5c3f2873ca4741cc768b457a.html)
 
 <a name="python"/>   
+
 ## Python
 ### Pandas
 [Navigating The Hell of NaNs in Python](https://towardsdatascience.com/navigating-the-hell-of-nans-in-python-71b12558895b)   
