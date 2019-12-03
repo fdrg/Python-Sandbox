@@ -23,3 +23,6 @@
 ### Pandas
 [Navigating The Hell of NaNs in Python](https://towardsdatascience.com/navigating-the-hell-of-nans-in-python-71b12558895b)   
 [How to split a list inside a Dataframe cell into rows in Pandas](https://www.mikulskibartosz.name/how-to-split-a-list-inside-a-dataframe-cell-into-rows-in-pandas/)   
+[Medium: Pandas for time series data — tricks and tips](https://medium.com/@bingobee01/pandas-tricks-and-tips-a7b87c3748ea)   
+[Medium: Pandas DataFrame: GroupBy Examples](http://queirozf.com/entries/pandas-dataframe-groupby-examples)   
+
