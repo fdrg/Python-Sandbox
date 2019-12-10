@@ -7,8 +7,11 @@
 <a name="ai"/>
 
 ### Artificial Intelligence
+Facebook’s AI lab was built by LeCun, one of the pioneers of deep learning who recently won the Turing Award for his work in the area. 
+
 [Wired: An AI Pioneer Wants His Algorithms to Understand the 'Why'](https://www.wired.com/story/ai-pioneer-algorithms-understand-why/#)   
 [Hotchips 2017 on AI and Human-machine](https://youtu.be/PVuSHjeh1Os)   
+[Wired: Facebook's Head of AI Says the Field Will Soon ‘Hit the Wall’](https://www.wired.com/story/facebooks-ai-says-field-hit-wall/#intcid=recommendations_default-popular_615edd1a-3d9b-4eb5-84e6-5657175defe5_popular4-1)
 
 <a name="quantumtechnology"/>   
 
